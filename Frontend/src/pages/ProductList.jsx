@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import ProductCard from '../components/ProductCard';
+import AnimatedProductCard from '../components/AnimatedProductCard';
+import { useInfiniteProducts } from '../hooks/useInfiniteProducts';
 import api from '../api/axios';
 
 const categories = [
@@ -102,6 +103,16 @@ function ProductList() {
     setSearchQuery('');
     navigate('?');
   };
+
+  const filterKey = `${selectedCategory}-${selectedCondition}-${location.search}-${priceRange.min}-${priceRange.max}`;
+  const {
+    visibleProducts,
+    hasMore,
+    sentinelRef,
+    visibleCount,
+    totalCount,
+    batchesLoaded,
+  } = useInfiniteProducts(products, filterKey);
 
   return (
     <div className="min-h-screen bg-white">
@@ -218,14 +229,31 @@ function ProductList() {
               <>
                 <div className="flex justify-between items-center mb-5 border-b border-gray-200 pb-3 -mt-1.5">
                   <h2 className="text-gray-600 text-sm leading-none">
-                    {products.length} {products.length === 1 ? 'Product' : 'Products'}
+                    {totalCount} {totalCount === 1 ? 'Product' : 'Products'}
+                    {visibleCount < totalCount && (
+                      <span className="text-gray-400"> · showing {visibleCount}</span>
+                    )}
                   </h2>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {products.map((product) => (
-                    <ProductCard key={product._id} product={product} />
+                <div className={`grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 ${batchesLoaded === 1 ? 'min-h-[70vh]' : ''}`}>
+                  {visibleProducts.map((product, index) => (
+                    <AnimatedProductCard key={product._id} product={product} index={index} />
                   ))}
                 </div>
+
+                {/* Scroll sentinel — loads next batch */}
+                {hasMore && (
+                  <div ref={sentinelRef} className="flex flex-col items-center justify-center py-16">
+                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-gray-900 mb-3" />
+                    <p className="text-[11px] text-gray-400 uppercase tracking-widest">Scroll for more</p>
+                  </div>
+                )}
+
+                {!hasMore && totalCount > 8 && (
+                  <p className="text-center text-[11px] text-gray-400 py-10 uppercase tracking-widest">
+                    You've seen all {totalCount} products
+                  </p>
+                )}
               </>
             ) : (
               <div className="text-center py-20 bg-gray-50 border border-gray-200 rounded-md">

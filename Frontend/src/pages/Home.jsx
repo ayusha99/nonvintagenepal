@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import ProductCard from '../components/ProductCard';
+import AnimatedProductCard from '../components/AnimatedProductCard';
 import api from '../api/axios';
 
 function Home() {
@@ -162,8 +162,8 @@ function Home() {
            </div>
         ) : newArrivals.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12">
-            {newArrivals.map((product) => (
-              <ProductCard key={product._id} product={product} />
+            {newArrivals.map((product, index) => (
+              <AnimatedProductCard key={product._id} product={product} index={index} />
             ))}
           </div>
         ) : (
@@ -212,8 +212,8 @@ function Home() {
            </div>
         ) : staffPicks.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12">
-            {staffPicks.map((product) => (
-              <ProductCard key={product._id} product={product} />
+            {staffPicks.map((product, index) => (
+              <AnimatedProductCard key={product._id} product={product} index={index} />
             ))}
           </div>
         ) : (
@@ -222,6 +222,68 @@ function Home() {
           </div>
         )}
       </section>
+
+      {/* The News Section */}
+      <section className="w-full bg-white py-20 lg:py-24 border-t border-gray-100">
+        <div className="w-full px-6 lg:px-12">
+          <h2 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-center text-gray-900 mb-16">
+            THE NEWS
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            {/* Card 1 */}
+            <Link to="/article/sustainability" className="bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md transition-all group flex flex-col rounded-xl overflow-hidden">
+              <div className="h-48 md:h-56 overflow-hidden">
+                <img src={heroImages[0]} alt="Sustainability" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              </div>
+              <div className="p-6 flex flex-col flex-grow">
+                <span className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mb-3">Sustainability</span>
+                <h3 className="text-gray-900 text-lg font-bold mb-3 leading-tight group-hover:text-[#D4AF37] transition-colors">Why Thrift Shopping Matters</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">Explore the environmental impact of second-hand fashion and how you can make a difference.</p>
+              </div>
+            </Link>
+
+            {/* Card 2 */}
+            <Link to="/article/vintage-revival" className="bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md transition-all group flex flex-col rounded-xl overflow-hidden">
+              <div className="h-48 md:h-56 overflow-hidden">
+                <img src={heroImages[1]} alt="Fashion Stories" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              </div>
+              <div className="p-6 flex flex-col flex-grow">
+                <span className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mb-3">Fashion Stories</span>
+                <h3 className="text-gray-900 text-lg font-bold mb-3 leading-tight group-hover:text-[#D4AF37] transition-colors">The Vintage Revival</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">Discover what makes vintage fashion timeless and how to style classic pieces.</p>
+              </div>
+            </Link>
+
+            {/* Card 3 */}
+            <Link to="/article/capsule-wardrobe" className="bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md transition-all group flex flex-col rounded-xl overflow-hidden">
+              <div className="h-48 md:h-56 overflow-hidden">
+                <img src={heroImages[2]} alt="Style Guide" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              </div>
+              <div className="p-6 flex flex-col flex-grow">
+                <span className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mb-3">Style Guide</span>
+                <h3 className="text-gray-900 text-lg font-bold mb-3 leading-tight group-hover:text-[#D4AF37] transition-colors">How to Build a Capsule Wardrobe</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">Learn the art of creating a sustainable wardrobe with quality second-hand pieces.</p>
+              </div>
+            </Link>
+
+            {/* Card 4 (Personal Website variant) */}
+            <Link to="/article/behind-the-brand" className="bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md transition-all group flex flex-col rounded-xl overflow-hidden">
+              <div className="h-48 md:h-56 overflow-hidden">
+                <img src="https://i.pinimg.com/originals/12/7b/41/127b41ae854386752953e466f23b4de4.jpg" alt="Behind the Brand" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              </div>
+              <div className="p-6 flex flex-col flex-grow">
+                <span className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mb-3">My Community</span>
+                <h3 className="text-gray-900 text-lg font-bold mb-3 leading-tight group-hover:text-[#D4AF37] transition-colors">Behind The Brand</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">Get inspired by the journey of bringing sustainable fashion directly to you.</p>
+              </div>
+            </Link>
+
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }
