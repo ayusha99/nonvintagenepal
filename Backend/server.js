@@ -7,6 +7,10 @@ import { errorHandler } from './src/middleware/errorHandler.js';
 import productRoutes from './src/routes/productRoutes.js';
 import authRoutes from './src/routes/authRoutes.js';
 import userRoutes from './src/routes/userRoutes.js';
+import orderRoutes from './src/routes/orderRoutes.js';
+import contactRoutes from './src/routes/contactRoutes.js';
+import adminRoutes from './src/routes/adminRoutes.js';
+import dropRoutes from './src/routes/dropRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +37,10 @@ app.get('/', (req, res) => {
 app.use('/api/products', productRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/drops', dropRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

@@ -1,18 +1,25 @@
 import Product from '../models/Product.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { hasCloudinaryConfig } from '../config/cloudinary.js';
+import Drop from '../models/Drop.js';
 
 // @desc    Get all available products
 // @route   GET /api/products
 // @access  Public
 export const getProducts = async (req, res, next) => {
   try {
-    const { category, status } = req.query;
+    const { category, status, drop } = req.query;
     const filter = {};
 
     if (category) filter.category = category;
-    if (status) filter.status = status;
-    else filter.status = 'available'; // Default: only show available products
+    if (drop) filter.drop = drop;
+    if (status === 'all') {
+      // Admin: return every product regardless of status
+    } else if (status) {
+      filter.status = status;
+    } else {
+      filter.status = 'available';
+    }
 
     const products = await Product.find(filter).sort({ createdAt: -1 });
 
@@ -54,13 +61,20 @@ export const getProductById = async (req, res, next) => {
 // @access  Private/Admin
 export const createProduct = async (req, res, next) => {
   try {
-    const { name, description, category, price, condition, size, brand } = req.body;
+    const { name, description, category, price, condition, size, brand, stock, drop } = req.body;
 
     // Images will be uploaded via separate endpoint
     const images = req.body.images || [];
 
     if (images.length === 0) {
       return next(new AppError('At least one image is required', 400));
+    }
+
+    if (drop) {
+      const dropExists = await Drop.findOne({ slug: drop, isActive: true });
+      if (!dropExists) {
+        return next(new AppError('Invalid or inactive drop', 400));
+      }
     }
 
     const product = await Product.create({
@@ -72,6 +86,9 @@ export const createProduct = async (req, res, next) => {
       condition,
       size,
       brand,
+      stock: stock !== undefined ? Number(stock) : 1,
+      status: Number(stock) === 0 ? 'sold' : 'available',
+      drop: drop || '',
     });
 
     res.status(201).json({
@@ -98,6 +115,22 @@ export const updateProduct = async (req, res, next) => {
 
     if (!product) {
       return next(new AppError('Product not found', 404));
+    }
+
+    if (req.body.drop) {
+      const dropExists = await Drop.findOne({ slug: req.body.drop, isActive: true });
+      if (!dropExists) {
+        return next(new AppError('Invalid or inactive drop', 400));
+      }
+    }
+
+    if (req.body.stock !== undefined) {
+      req.body.stock = Number(req.body.stock);
+      if (req.body.stock <= 0) {
+        req.body.status = 'sold';
+      } else if (product.status === 'sold') {
+        req.body.status = 'available';
+      }
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(

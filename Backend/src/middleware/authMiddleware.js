@@ -46,3 +46,23 @@ export const isAdmin = (req, res, next) => {
     next(new AppError('Access denied. Admin only.', 403));
   }
 };
+
+// Optional auth — attach user when token is valid, never block public routes
+export const optionalProtect = async (req, res, next) => {
+  try {
+    let token;
+
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = await User.findById(decoded.id).select('-passwordHash');
+    }
+
+    next();
+  } catch {
+    next();
+  }
+};

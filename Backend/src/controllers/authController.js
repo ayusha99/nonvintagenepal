@@ -1,7 +1,18 @@
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { hasCloudinaryConfig } from '../config/cloudinary.js';
+import { sendPasswordResetEmail } from '../utils/email.js';
+
+const formatUserResponse = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  profilePicture: user.profilePicture || '',
+});
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -57,12 +68,7 @@ export const signup = async (req, res, next) => {
     res.status(201).json({
       success: true,
       data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
+        user: formatUserResponse(user),
         token,
       },
     });
@@ -105,12 +111,7 @@ export const login = async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
+        user: formatUserResponse(user),
         token,
       },
     });
@@ -142,7 +143,7 @@ export const getMe = async (req, res, next) => {
     const user = await User.findById(req.user.id).select('-passwordHash');
     res.json({
       success: true,
-      data: user,
+      data: formatUserResponse(user),
     });
   } catch (error) {
     next(error);
@@ -169,16 +170,145 @@ export const updateProfile = async (req, res, next) => {
 
       res.json({
         success: true,
-        data: {
-          id: updatedUser._id,
-          name: updatedUser.name,
-          email: updatedUser.email,
-          role: updatedUser.role,
-        },
+        data: formatUserResponse(updatedUser),
       });
     } else {
       return next(new AppError('User not found', 404));
     }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Upload profile picture
+// @route   POST /api/auth/profile/picture
+// @access  Private
+export const uploadProfilePicture = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return next(new AppError('No image uploaded', 400));
+    }
+
+    const imageUrl = hasCloudinaryConfig
+      ? req.file.path
+      : `${req.protocol}://${req.get('host')}/api/auth/uploads/${req.file.filename}`;
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return next(new AppError('User not found', 404));
+    }
+
+    user.profilePicture = imageUrl;
+    const updatedUser = await user.save();
+
+    res.json({
+      success: true,
+      data: formatUserResponse(updatedUser),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Remove profile picture
+// @route   DELETE /api/auth/profile/picture
+// @access  Private
+export const removeProfilePicture = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return next(new AppError('User not found', 404));
+    }
+
+    user.profilePicture = '';
+    const updatedUser = await user.save();
+
+    res.json({
+      success: true,
+      data: formatUserResponse(updatedUser),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Request password reset email
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return next(new AppError('Please provide your email address', 400));
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    const message =
+      'If that email is registered, you will receive a password reset link shortly.';
+
+    if (!user) {
+      return res.json({ success: true, message });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    user.resetPasswordExpire = Date.now() + 60 * 60 * 1000;
+    await user.save({ validateBeforeSave: false });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    try {
+      await sendPasswordResetEmail(user.email, resetUrl);
+    } catch (mailError) {
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+      return next(new AppError('Could not send reset email. Try again later.', 500));
+    }
+
+    res.json({ success: true, message });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reset password with token
+// @route   POST /api/auth/reset-password
+// @access  Public
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return next(new AppError('Please provide token and new password', 400));
+    }
+
+    if (password.length < 6) {
+      return next(new AppError('Password must be at least 6 characters', 400));
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return next(new AppError('Invalid or expired reset link', 400));
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(password, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password updated successfully. You can now log in.',
+    });
   } catch (error) {
     next(error);
   }

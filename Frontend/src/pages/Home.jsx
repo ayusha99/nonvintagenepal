@@ -1,285 +1,222 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import AnimatedProductCard from '../components/AnimatedProductCard';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
+import HeroReel from '../components/HeroReel';
+import NewDropSection from '../components/NewDropSection';
+import FeaturedArchiveSection from '../components/FeaturedArchiveSection';
+import { HOME_CATEGORIES as categories } from '../constants/categories';
+import { useDrops } from '../hooks/useDrops';
 
-function Home() {
+/* ─── Scroll-reveal hook ───────────────────────────────────── */
+function useReveal(enabled = true) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!enabled) return;
+    const el = ref.current;
+    if (!el) return;
+
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.05, rootMargin: '120px 0px' }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [enabled]);
+  return [ref, visible];
+}
+
+/* ─── Main page ────────────────────────────────────────────── */
+const FEATURED_TOTAL = 9;
+export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [dropCounts, setDropCounts] = useState({});
   const [loading, setLoading] = useState(true);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const { drops: newDropItems, loading: dropsLoading } = useDrops();
 
-  // Hero images - Real Non Vintage Nepal Instagram products
-  const heroImages = [
-    "https://i.pinimg.com/originals/12/7b/41/127b41ae854386752953e466f23b4de4.jpg",
-    "https://i.pinimg.com/originals/36/8c/26/368c261d76bcfa5add0ffe3e062dfd20.jpg",
-    "https://i.pinimg.com/originals/05/31/6c/05316c5942a7498ca22c756da0ce1005.jpg",
-  ];
+  // Reveal refs — pass enabled so observer runs after conditional sections mount
+  const [newDropRef, newDropVisible] = useReveal(!dropsLoading && newDropItems.length > 0);
+  const [featuredRef, featuredVisible] = useReveal();
+  const [storyRef, storyVisible] = useReveal();
 
-  const categories = [
-    { name: 'Tops', path: '/products?search=tops' },
-    { name: 'Bottoms', path: '/products?search=bottoms' },
-    { name: 'Outerwear', path: '/products?search=outerwear' },
-    { name: 'Accessories', path: '/products?search=accessories' },
-    { name: 'Shoes', path: '/products?search=shoes' },
-    { name: 'Vintage', path: '/products?search=vintage' },
-  ];
-
+  /* fetch products */
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await api.get('/products?status=available');
-        setFeaturedProducts(response.data.data.slice(0, 16));
-      } catch (error) {
-        console.error('Error fetching products:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    api.get('/products?status=available')
+      .then(r => {
+        const all = r.data.data || r.data.products || [];
+        const available = all.filter(p => p.stock > 0);
+        const inDrop = available.filter((p) => p.drop);
+        const pool = inDrop.length >= 5 ? inDrop : available;
+        setFeaturedProducts(pool.slice(0, FEATURED_TOTAL));
 
-    fetchProducts();
+        const counts = {};
+        available.forEach((p) => {
+          if (p.drop) counts[p.drop] = (counts[p.drop] || 0) + 1;
+        });
+        setDropCounts(counts);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
-
-  const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
-  };
-
-  const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + heroImages.length) % heroImages.length);
-  };
-
-  // Rotating images animation
-  useEffect(() => {
-    const interval = setInterval(nextImage, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const newArrivals = featuredProducts.slice(0, 8);
-  const staffPicks = featuredProducts.slice(8, 16);
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Category Sub-Nav */}
-      <div className="border-b border-gray-200 bg-white sticky top-[96px] z-40 hidden md:block">
-        <div className="w-full px-6 lg:px-12">
-          <ul className="flex items-center justify-center space-x-12 lg:space-x-20 h-14 overflow-x-auto no-scrollbar">
-            {categories.map((cat, idx) => (
-              <li key={idx}>
-                <Link to={cat.path} className="text-gray-900 hover:text-gray-600 text-xs uppercase tracking-widest font-bold whitespace-nowrap transition-colors">
-                  {cat.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
+    <div className="bg-white -mt-16 lg:-mt-20">
+      <HeroReel />
+
+      {/* ══════════════════════════════════════════
+          SHOP BY CATEGORY — unchanged (user likes it)
+      ══════════════════════════════════════════ */}
+      <section className="w-full pt-14 pb-6">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 mb-6 flex items-center justify-between">
+          <h2 className="text-xs font-black uppercase tracking-[0.3em] text-black">
+            Shop by Category
+          </h2>
+          <Link to="/products" className="text-[10px] uppercase tracking-[0.2em] text-gray-500 hover:text-black transition-colors flex items-center gap-2 font-bold">
+            View All <ArrowRight className="w-3 h-3" />
+          </Link>
         </div>
-      </div>
-
-      {/* Hero Section */}
-      <section className="w-full relative h-[350px] md:h-[450px] lg:h-[500px] bg-black flex items-center justify-center overflow-hidden group">
-        {heroImages.map((image, index) => (
-          <img 
-            key={index}
-            src={image} 
-            alt={`Vintage Collection ${index + 1}`} 
-            className={`absolute inset-0 w-full h-full object-cover object-[50%_30%] transition-opacity duration-1000 ease-in-out ${
-              index === currentImageIndex ? 'opacity-100 z-0' : 'opacity-0 -z-10'
-            }`}
-          />
-        ))}
-        <div className="absolute inset-0 bg-black/40 z-0"></div>
-        
-        {/* Navigation Arrows */}
-        <button 
-          onClick={prevImage}
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 text-white/70 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <button 
-          onClick={nextImage}
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 text-white/70 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-
-        {/* Content */}
-        <div className="relative z-10 text-center px-4 w-full max-w-4xl flex flex-col items-center">
-          <span className="text-white text-[10px] md:text-xs font-bold uppercase tracking-widest mb-3">
-            Editorial
-          </span>
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-8 leading-tight tracking-wide">
-            Non Vintage Collection
-          </h1>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link 
-              to="/products" 
-              className="inline-block bg-white border border-white text-black px-8 py-3 text-[10px] md:text-xs font-bold uppercase tracking-widest hover:bg-transparent hover:text-white transition-colors"
+        <div className="flex gap-0.5 overflow-x-auto snap-x snap-mandatory scrollbar-hide px-6 lg:px-12 pb-2">
+          {categories.map((cat) => (
+            <Link
+              key={cat.name}
+              to={cat.path}
+              className="relative flex-shrink-0 w-[50vw] sm:w-44 md:w-48 lg:w-52 snap-start aspect-[3/4] overflow-hidden bg-gray-100 group"
             >
-              Shop All
+              <img
+                src={cat.image}
+                alt={cat.name}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.07]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
+                <span className="text-[10px] uppercase tracking-[0.25em] text-white font-black">{cat.name}</span>
+                <ArrowUpRight className="w-3.5 h-3.5 text-white/60 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             </Link>
-            <Link 
-              to="/products?search=new" 
-              className="inline-block bg-transparent border border-white text-white px-8 py-3 text-[10px] md:text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors"
-            >
-              New Arrivals
-            </Link>
-          </div>
-        </div>
-
-        {/* Dots */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2 z-20">
-          {heroImages.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentImageIndex(idx)}
-              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                idx === currentImageIndex ? 'bg-white' : 'bg-white/30 hover:bg-white/50'
-              }`}
-            />
           ))}
         </div>
       </section>
 
-      {/* New Arrivals Section */}
-      <section className="w-full px-6 lg:px-12 py-16 lg:py-24">
-        <div className="flex justify-between items-end mb-8 border-b border-gray-200 pb-3">
-          <div>
-            <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight text-gray-900">
-              New Arrivals
-            </h2>
-          </div>
-          <Link to="/products" className="hidden md:inline-block text-[11px] font-bold uppercase tracking-widest text-gray-900 hover:text-gray-600 transition-colors">
-            Shop All
-          </Link>
-        </div>
+      {/* ══════════════════════════════════════════
+          NEW DROP — Staggered animated photo grid
+      ══════════════════════════════════════════ */}
+      {!dropsLoading && newDropItems.length > 0 && (
+        <NewDropSection
+          drops={newDropItems}
+          dropCounts={dropCounts}
+          sectionRef={newDropRef}
+          visible={newDropVisible}
+        />
+      )}
 
-        {loading ? (
-           <div className="text-center py-20">
-             <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-black border-t-transparent"></div>
-           </div>
-        ) : newArrivals.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12">
-            {newArrivals.map((product, index) => (
-              <AnimatedProductCard key={product._id} product={product} index={index} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20 bg-gray-50 border border-gray-200">
-             <p className="uppercase tracking-widest text-sm text-gray-500 font-bold">Collection Coming Soon</p>
-          </div>
-        )}
-      </section>
+      <FeaturedArchiveSection
+        products={featuredProducts}
+        loading={loading}
+        sectionRef={featuredRef}
+        visible={featuredVisible}
+      />
 
-      {/* Editorial Banner */}
-      <section className="w-full px-6 lg:px-12 py-10">
-        <div className="bg-gray-50 flex flex-col md:flex-row items-stretch border border-gray-200">
-          <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
-            <h3 className="text-2xl lg:text-3xl font-black uppercase tracking-tight text-gray-900 mb-4 leading-none">
-              100% Unique &<br/>Sustainable
-            </h3>
-            <p className="text-gray-600 text-[13px] leading-relaxed mb-8 max-w-sm font-medium">
-              Based in Kathmandu. Every piece in our collection is hand-picked, authenticated, and one-of-a-kind. Embrace circular fashion. Once it's gone, it's gone forever.
-            </p>
-            <Link to="/products" className="self-start border-b-2 border-gray-900 text-gray-900 font-bold uppercase tracking-widest text-[11px] pb-1 hover:text-gray-500 hover:border-gray-500 transition-colors">
-              Read Our Story
-            </Link>
-          </div>
-          <div className="w-full md:w-1/2 h-[400px] md:h-[500px]">
-             <img src={heroImages[1]} className="w-full h-full object-cover" alt="Editorial" />
-          </div>
-        </div>
-      </section>
+      {/* ══════════════════════════════════════════
+          BRAND STORY — clean editorial block
+      ══════════════════════════════════════════ */}
+      <section ref={storyRef} className="w-full bg-[#f4f4f2] border-t border-black/5">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 lg:py-24">
+          <div
+            className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-end"
+            style={{
+              opacity: storyVisible ? 1 : 0,
+              transform: storyVisible ? 'translateY(0)' : 'translateY(24px)',
+              transition: 'opacity 700ms ease, transform 700ms ease',
+            }}
+          >
+            {/* Copy */}
+            <div className="lg:col-span-5 lg:pb-4">
+              <p className="text-[10px] uppercase tracking-[0.35em] text-gray-500 mb-4 font-bold">
+                Kathmandu · Since 2023
+              </p>
+              <h2
+                className="font-black uppercase text-black leading-[1.05] mb-6"
+                style={{
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: 'clamp(28px, 4vw, 48px)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Curated vintage,
+                <br />
+                one piece at a time.
+              </h2>
+              <p className="text-sm md:text-base text-gray-600 leading-relaxed max-w-md mb-8">
+                We source, authenticate, and shoot every item in-house. No bulk inventory — just rare finds
+                that land once and leave when they&apos;re gone.
+              </p>
 
-      {/* Trending Now Section */}
-      <section className="w-full px-6 lg:px-12 py-16 lg:py-24">
-        <div className="flex justify-between items-end mb-8 border-b border-gray-200 pb-3">
-          <div>
-            <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight text-gray-900">
-              Trending Now
-            </h2>
-          </div>
-          <Link to="/products" className="hidden md:inline-block text-[11px] font-bold uppercase tracking-widest text-gray-900 hover:text-gray-600 transition-colors">
-            View All
-          </Link>
-        </div>
-
-        {loading ? (
-           <div className="text-center py-20">
-             <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-black border-t-transparent"></div>
-           </div>
-        ) : staffPicks.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12">
-            {staffPicks.map((product, index) => (
-              <AnimatedProductCard key={product._id} product={product} index={index} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20 bg-gray-50 border border-gray-200">
-             <p className="uppercase tracking-widest text-sm text-gray-500 font-bold">More Items Coming Soon</p>
-          </div>
-        )}
-      </section>
-
-      {/* The News Section */}
-      <section className="w-full bg-white py-20 lg:py-24 border-t border-gray-100">
-        <div className="w-full px-6 lg:px-12">
-          <h2 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-center text-gray-900 mb-16">
-            THE NEWS
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            {/* Card 1 */}
-            <Link to="/article/sustainability" className="bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md transition-all group flex flex-col rounded-xl overflow-hidden">
-              <div className="h-48 md:h-56 overflow-hidden">
-                <img src={heroImages[0]} alt="Sustainability" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4 mb-10 max-w-md">
+                {[
+                  ['01', 'Authenticated in-house'],
+                  ['02', 'Weekly drops'],
+                  ['03', 'Ships across Nepal'],
+                  ['04', 'One-of-one pieces'],
+                ].map(([num, text]) => (
+                  <div key={num} className="border-t border-black/15 pt-3">
+                    <p className="text-[10px] text-gray-400 font-bold mb-1">{num}</p>
+                    <p className="text-xs text-gray-800 font-medium leading-snug">{text}</p>
+                  </div>
+                ))}
               </div>
-              <div className="p-6 flex flex-col flex-grow">
-                <span className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mb-3">Sustainability</span>
-                <h3 className="text-gray-900 text-lg font-bold mb-3 leading-tight group-hover:text-[#D4AF37] transition-colors">Why Thrift Shopping Matters</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">Explore the environmental impact of second-hand fashion and how you can make a difference.</p>
-              </div>
-            </Link>
 
-            {/* Card 2 */}
-            <Link to="/article/vintage-revival" className="bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md transition-all group flex flex-col rounded-xl overflow-hidden">
-              <div className="h-48 md:h-56 overflow-hidden">
-                <img src={heroImages[1]} alt="Fashion Stories" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  to="/products"
+                  className="group inline-flex items-center gap-2 bg-black text-white px-6 py-3.5 text-[10px] font-black uppercase tracking-[0.22em] hover:bg-gray-900 transition-colors"
+                >
+                  Shop Collection
+                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+                <Link
+                  to="/our-story"
+                  className="inline-flex items-center px-6 py-3.5 text-[10px] font-black uppercase tracking-[0.22em] text-black border border-black/20 hover:border-black transition-colors"
+                >
+                  Our Story
+                </Link>
+                <a
+                  href="https://www.instagram.com/nonvintagenepal/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 hover:text-black transition-colors px-2 py-3.5"
+                >
+                  @nonvintagenepal ↗
+                </a>
               </div>
-              <div className="p-6 flex flex-col flex-grow">
-                <span className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mb-3">Fashion Stories</span>
-                <h3 className="text-gray-900 text-lg font-bold mb-3 leading-tight group-hover:text-[#D4AF37] transition-colors">The Vintage Revival</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">Discover what makes vintage fashion timeless and how to style classic pieces.</p>
-              </div>
-            </Link>
+            </div>
 
-            {/* Card 3 */}
-            <Link to="/article/capsule-wardrobe" className="bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md transition-all group flex flex-col rounded-xl overflow-hidden">
-              <div className="h-48 md:h-56 overflow-hidden">
-                <img src={heroImages[2]} alt="Style Guide" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            {/* Image grid — no overlays, no fake social UI */}
+            <div className="lg:col-span-7 grid grid-cols-12 gap-2 md:gap-3">
+              <div className="col-span-7 aspect-[4/5] overflow-hidden bg-gray-200">
+                <img
+                  src="/hero/hero-src-1.jpg"
+                  alt="Vintage collection at Non Vintage Nepal"
+                  className="w-full h-full object-cover object-center"
+                />
               </div>
-              <div className="p-6 flex flex-col flex-grow">
-                <span className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mb-3">Style Guide</span>
-                <h3 className="text-gray-900 text-lg font-bold mb-3 leading-tight group-hover:text-[#D4AF37] transition-colors">How to Build a Capsule Wardrobe</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">Learn the art of creating a sustainable wardrobe with quality second-hand pieces.</p>
+              <div className="col-span-5 flex flex-col gap-2 md:gap-3">
+                <div className="flex-1 min-h-[120px] overflow-hidden bg-gray-200">
+                  <img
+                    src="/hero/hero-2.jpg"
+                    alt="Curated vintage pieces"
+                    className="w-full h-full object-cover object-top"
+                  />
+                </div>
+                <div className="flex-1 min-h-[120px] overflow-hidden bg-gray-200">
+                  <img
+                    src="/hero/hero-src-2.jpg"
+                    alt="Streetwear and jerseys"
+                    className="w-full h-full object-cover object-top"
+                  />
+                </div>
               </div>
-            </Link>
-
-            {/* Card 4 (Personal Website variant) */}
-            <Link to="/article/behind-the-brand" className="bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md transition-all group flex flex-col rounded-xl overflow-hidden">
-              <div className="h-48 md:h-56 overflow-hidden">
-                <img src="https://i.pinimg.com/originals/12/7b/41/127b41ae854386752953e466f23b4de4.jpg" alt="Behind the Brand" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-              </div>
-              <div className="p-6 flex flex-col flex-grow">
-                <span className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mb-3">My Community</span>
-                <h3 className="text-gray-900 text-lg font-bold mb-3 leading-tight group-hover:text-[#D4AF37] transition-colors">Behind The Brand</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">Get inspired by the journey of bringing sustainable fashion directly to you.</p>
-              </div>
-            </Link>
-
+            </div>
           </div>
         </div>
       </section>
@@ -287,5 +224,3 @@ function Home() {
     </div>
   );
 }
-
-export default Home;

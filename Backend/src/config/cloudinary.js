@@ -33,7 +33,7 @@ if (hasCloudinaryConfig) {
     },
   });
   
-  console.log('✅ Using Cloudinary for image uploads');
+  console.log(' Using Cloudinary for image uploads');
 } else {
   // Fallback to local storage for testing
   storage = multer.diskStorage({
@@ -46,7 +46,7 @@ if (hasCloudinaryConfig) {
     }
   });
   
-  console.log('⚠️  Using local storage (Cloudinary not configured)');
+  console.log(' Using local storage (Cloudinary not configured)');
   console.log('   Add Cloudinary credentials to .env for cloud storage');
 }
 

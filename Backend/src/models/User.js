@@ -28,6 +28,12 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
     }],
+    profilePicture: {
+      type: String,
+      default: '',
+    },
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
   },
   {
     timestamps: true,

@@ -17,12 +17,11 @@ function ProtectedRoute({ children, adminOnly = false }) {
   }
 
   if (adminOnly && !isAdmin) {
-    return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-4xl font-bold text-red-600 mb-4">Access Denied</h1>
-        <p className="text-gray-600">You don't have permission to access this page.</p>
-      </div>
-    );
+    return <Navigate to="/" replace />;
+  }
+
+  if (!adminOnly && user && isAdmin) {
+    return <Navigate to="/admin" replace />;
   }
 
   return children;

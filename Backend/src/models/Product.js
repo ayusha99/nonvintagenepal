@@ -14,12 +14,18 @@ const productSchema = new mongoose.Schema(
     category: {
       type: String,
       required: [true, 'Category is required'],
-      enum: ['tops', 'bottoms', 'dresses', 'outerwear', 'accessories', 'shoes', 'other'],
+      enum: ['tops', 'bottoms', 'jorts', 'hoodies', 'graphic-tees', 'denim', 'jackets', 'jerseys', 'accessories', 'bags'],
     },
     price: {
       type: Number,
       required: [true, 'Price is required'],
       min: 0,
+    },
+    stock: {
+      type: Number,
+      required: [true, 'Stock is required'],
+      min: 0,
+      default: 1,
     },
     images: {
       type: [String],
@@ -49,6 +55,12 @@ const productSchema = new mongoose.Schema(
       enum: ['available', 'sold'],
       default: 'available',
     },
+    drop: {
+      type: String,
+      default: '',
+      trim: true,
+      lowercase: true,
+    },
   },
   {
     timestamps: true,
@@ -58,6 +70,7 @@ const productSchema = new mongoose.Schema(
 // Index for faster queries
 productSchema.index({ status: 1, createdAt: -1 });
 productSchema.index({ category: 1, status: 1 });
+productSchema.index({ drop: 1, status: 1 });
 
 const Product = mongoose.model('Product', productSchema);
 
